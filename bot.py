@@ -17,30 +17,20 @@ import asyncio
 
 init(autoreset=True)
 
-# ค่าคงที่จากโค้ดเดิม
+# ค่าคงที่
 TRUE_USER = "17554398"
 TRUE_PASS = "true123456"
 COOKIE_FILE = "true_cookies.json"
 
 class TruePortalBot:
     def __init__(self):
-        self.config_file = "bot_config.json"
+        self.token = os.getenv('DISCORD_TOKEN')
+        self.channel_id = int(os.getenv('CHANNEL_ID', '0'))
         self.cookies = {}
-        self.load_config()
         self.load_cookies()
-    
-    def load_config(self):
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    self.config = json.load(f)
-                print(f"{Fore.GREEN}✓ Loaded config from {self.config_file}")
-            except Exception as e:
-                print(f"{Fore.RED}✗ Config load error: {e}")
-                self.config = {}
-        else:
-            self.config = {}
-            self.setup_config()
+        
+        if not self.token or not self.channel_id:
+            print(f"{Fore.RED}❌ Missing DISCORD_TOKEN or CHANNEL_ID in environment variables")
     
     def load_cookies(self):
         try:
@@ -58,41 +48,6 @@ class TruePortalBot:
             print(f"{Fore.GREEN}✓ Saved cookies to {COOKIE_FILE}")
         except:
             pass
-    
-    def setup_config(self):
-        print(f"\n{Fore.YELLOW}═══════════════════════════════════════")
-        print(f"    True Portal Discord Bot Setup")
-        print(f"═══════════════════════════════════════{Style.RESET_ALL}\n")
-        
-        print(f"{Fore.CYAN}Please enter the following information:{Style.RESET_ALL}")
-        
-        while True:
-            token = input(f"{Fore.WHITE}Discord Bot Token: {Fore.YELLOW}").strip()
-            if token:
-                break
-            print(f"{Fore.RED}Token cannot be empty!")
-        
-        while True:
-            channel_id = input(f"{Fore.WHITE}Target Channel ID: {Fore.YELLOW}").strip()
-            if channel_id and channel_id.isdigit():
-                break
-            print(f"{Fore.RED}Please enter a valid numeric Channel ID!")
-        
-        self.config = {
-            "token": token,
-            "channel_id": int(channel_id)
-        }
-        
-        try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=4)
-            print(f"{Fore.GREEN}✓ Configuration saved to {self.config_file}")
-            print(f"{Fore.GREEN}✓ Bot setup complete!")
-        except Exception as e:
-            print(f"{Fore.RED}✗ Failed to save config: {e}")
-            return False
-        
-        return True
     
     def get_cookies_selenium(self):
         """วิธีที่ 1: ใช้ Selenium สำหรับ login"""
@@ -281,7 +236,7 @@ class TruePortalBot:
             return date_str
     
     def create_beautiful_embed(self, data, query):
-        """สร้าง Discord embed ที่สวยงามตามที่ต้องการ"""
+        """สร้าง Discord embed ที่สวยงาม"""
         
         if "error" in data:
             embed = discord.Embed(
@@ -310,7 +265,6 @@ class TruePortalBot:
         
         results = data["results"]
         
-        # สร้าง embed หลัก
         embed = discord.Embed(
             title=f"📡 ข้อมูลลูกค้า True Portal",
             description=f"🔄 กำลังดึงข้อมูลเบอร์ **{query}**...\n━━━━━━━━━━━━━━━━━━━━",
@@ -324,7 +278,6 @@ class TruePortalBot:
             # 【 🙍‍♂️ 】ข้อมูลส่วนบุคคล
             personal_info = []
             
-            # ชื่อ-นามสกุล
             firstname = rd.get('firstname', '')
             lastname = rd.get('lastname', '')
             title = rd.get('title', '')
@@ -337,20 +290,16 @@ class TruePortalBot:
             if name and name != ' ':
                 personal_info.append(f"👤 **ชื่อ-นามสกุล:** {name}")
             
-            # เลขบัตรประชาชน
             id_number = rd.get('id-number', '')
             if id_number and id_number != '-':
-                # แสดงเลขบัตรแบบเว้นวรรคทุก 4 หลัก
                 formatted_id = ' '.join([id_number[i:i+4] for i in range(0, len(id_number), 4)])
                 personal_info.append(f"🪪 **เลขบัตรประชาชน:** {formatted_id}")
             
-            # วันเกิด
             birthdate = rd.get('birthdate', '')
             if birthdate and birthdate != '-':
                 thai_birth = self.format_thai_date(birthdate)
                 personal_info.append(f"📅 **วันเกิด:** {thai_birth}")
             
-            # เพศ
             gender = rd.get('gender', '')
             if gender:
                 gender_map = {
@@ -370,10 +319,8 @@ class TruePortalBot:
             # 【 📞 】ข้อมูลการติดต่อ
             contact_info = []
             
-            # เบอร์โทร
             phone = rd.get('contact-mobile-number', '')
             if phone and phone != '-':
-                # จัดรูปแบบเบอร์โทร
                 if len(phone) == 10:
                     formatted_phone = f"{phone[0:3]}-{phone[3:6]}-{phone[6:10]}"
                 else:
@@ -399,43 +346,34 @@ class TruePortalBot:
                         addr = addr_list[addr_type]
                         if isinstance(addr, dict):
                             
-                            # บ้านเลขที่
                             if addr.get('number') and addr['number'] != '-':
                                 address_lines.append(f"🏠 **บ้านเลขที่:** {addr['number']}")
                             
-                            # หมู่
                             if addr.get('moo') and addr['moo'] != '-':
                                 address_lines.append(f"🏘️ **หมู่:** {addr['moo']}")
                             
-                            # อาคาร
                             if addr.get('building-name') and addr['building-name'] != '-':
                                 address_lines.append(f"🏢 **อาคาร:** {addr['building-name']}")
                             
-                            # ซอย
                             if addr.get('soi') and addr['soi'] != '-':
                                 address_lines.append(f"🛣️ **ซอย:** {addr['soi']}")
                             
-                            # ถนน
                             if addr.get('street') and addr['street'] != '-':
                                 address_lines.append(f"🛤️ **ถนน:** {addr['street']}")
                             
-                            # ตำบล/แขวง
                             if addr.get('sub-district') and addr['sub-district'] != '-':
                                 address_lines.append(f"🗺️ **ตำบล/แขวง:** {addr['sub-district']}")
                             
-                            # อำเภอ/เขต
                             if addr.get('district') and addr['district'] != '-':
                                 address_lines.append(f"🌆 **อำเภอ/เขต:** {addr['district']}")
                             
-                            # จังหวัด
                             if addr.get('province') and addr['province'] != '-':
                                 address_lines.append(f"🌇 **จังหวัด:** {addr['province']}")
                             
-                            # รหัสไปรษณีย์
                             if addr.get('zip') and addr['zip'] != '-':
                                 address_lines.append(f"📮 **รหัสไปรษณีย์:** {addr['zip']}")
                             
-                            break  # เจอที่อยู่แล้วหยุด
+                            break
             
             if address_lines:
                 embed.add_field(
@@ -447,17 +385,14 @@ class TruePortalBot:
             # 【 💬 】รายละเอียดลูกค้า
             customer_info = []
             
-            # รหัสลูกค้า
             customer_id = rd.get('customer-id', '')
             if customer_id and customer_id != '-':
                 customer_info.append(f"🆔 **รหัสลูกค้า:** {customer_id}")
             
-            # ระดับลูกค้า
             customer_level = rd.get('customer-level', '')
             if customer_level and customer_level != '-':
                 customer_info.append(f"⭐ **ระดับลูกค้า:** {customer_level}")
             
-            # วันที่บัตรหมดอายุ
             if 'id-card-expire-date' in rd and rd['id-card-expire-date'] and rd['id-card-expire-date'] != '-':
                 expire_date = self.format_thai_date(rd['id-card-expire-date'])
                 customer_info.append(f"⏳ **บัตรหมดอายุ:** {expire_date}")
@@ -469,7 +404,6 @@ class TruePortalBot:
                     inline=False
                 )
         
-        # Footer
         current_time = datetime.now()
         thai_time = current_time.strftime("%d/%m/%Y %H:%M")
         embed.set_footer(text=f"Check by: True Portal • {thai_time}")
@@ -477,8 +411,8 @@ class TruePortalBot:
         return embed
     
     def run_bot(self):
-        if not self.config.get("token") or not self.config.get("channel_id"):
-            print(f"{Fore.RED}✗ Invalid configuration. Please run setup again.")
+        if not self.token or not self.channel_id:
+            print(f"{Fore.RED}✗ Missing Discord Token or Channel ID")
             return
         
         intents = discord.Intents.default()
@@ -493,13 +427,12 @@ class TruePortalBot:
             print(f"═══════════════════════════════════════")
             print(f"Logged in as: {bot.user.name}")
             print(f"Bot ID: {bot.user.id}")
-            print(f"Channel ID: {self.config['channel_id']}")
+            print(f"Channel ID: {self.channel_id}")
             print(f"Prefix: !")
             print(f"═══════════════════════════════════════{Style.RESET_ALL}\n")
             print(f"{Fore.CYAN}Waiting for commands...{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}Command: !phone <phone_number>{Style.RESET_ALL}")
             
-            # ตรวจสอบ login ตอนเริ่ม bot
             if self.check_login_status():
                 print(f"{Fore.GREEN}✓ Connected to True Portal{Style.RESET_ALL}")
             else:
@@ -507,11 +440,9 @@ class TruePortalBot:
         
         @bot.command(name='phone')
         async def phone_lookup(ctx, phone_number: str = None):
-            # ตรวจสอบ channel
-            if str(ctx.channel.id) != str(self.config["channel_id"]):
+            if str(ctx.channel.id) != str(self.channel_id):
                 return
             
-            # ถ้าไม่มี参数 ส่งข้อความวิธีใช้
             if not phone_number:
                 embed = discord.Embed(
                     title="❌ กรุณาใส่เบอร์โทร 10 หลัก",
@@ -521,7 +452,6 @@ class TruePortalBot:
                 await ctx.send(embed=embed)
                 return
             
-            # ตรวจสอบรูปแบบ
             if not phone_number.isdigit():
                 embed = discord.Embed(
                     title="❌ กรุณาใส่เฉพาะตัวเลข",
@@ -540,7 +470,6 @@ class TruePortalBot:
                 await ctx.send(embed=embed)
                 return
             
-            # แสดงสถานะกำลังค้นหา
             loading_embed = discord.Embed(
                 title=f"🔄 กำลังดึงข้อมูลเบอร์ {phone_number}...",
                 description="⏳ กรุณารอสักครู่ ระบบกำลังค้นหาข้อมูล",
@@ -549,16 +478,11 @@ class TruePortalBot:
             loading_msg = await ctx.send(embed=loading_embed)
             
             try:
-                # เรียกดูข้อมูล
                 data = self.fetch_data(phone_number)
                 
-                # ลบข้อความกำลังโหลด
                 await loading_msg.delete()
                 
-                # สร้าง embed สวยงาม
                 embed = self.create_beautiful_embed(data, phone_number)
-                
-                # ส่ง embed
                 await ctx.send(embed=embed)
                 
                 print(f"{Fore.GREEN}✓ Sent phone lookup results for: {phone_number}")
@@ -588,41 +512,12 @@ class TruePortalBot:
         
         try:
             print(f"{Fore.CYAN}Starting bot...{Style.RESET_ALL}")
-            bot.run(self.config["token"])
+            bot.run(self.token)
         except discord.LoginFailure:
-            print(f"{Fore.RED}✗ Invalid bot token. Please check your token in {self.config_file}")
+            print(f"{Fore.RED}✗ Invalid bot token")
         except Exception as e:
             print(f"{Fore.RED}✗ Bot runtime error: {e}")
 
-def main():
-    print(f"{Fore.CYAN}=== True Portal Discord Bot ===")
-    
-    bot = TruePortalBot()
-    
-    if not bot.config:
-        return
-    
-    while True:
-        print(f"\n{Fore.YELLOW}Options:")
-        print(f"1. Start Bot")
-        print(f"2. Reconfigure Settings")
-        print(f"3. Exit")
-        
-        choice = input(f"\n{Fore.WHITE}Select option (1-3): {Fore.YELLOW}").strip()
-        
-        if choice == "1":
-            print(f"{Fore.CYAN}Starting bot...{Style.RESET_ALL}")
-            bot.run_bot()
-            break
-        elif choice == "2":
-            if bot.setup_config():
-                bot.run_bot()
-                break
-        elif choice == "3":
-            print(f"{Fore.CYAN}Exiting...{Style.RESET_ALL}")
-            break
-        else:
-            print(f"{Fore.RED}Invalid choice. Please select 1, 2, or 3.")
-
 if __name__ == "__main__":
-    main()
+    bot = TruePortalBot()
+    bot.run_bot()
