@@ -26,25 +26,32 @@ PREDEFINED_COOKIES = {
 
 class TruePortalBot:
     def __init__(self):
-        self.config_file = "bot_config.json"
+        # ใช้ Environment Variables แทนการถามผ่าน input()
+        self.token = os.getenv('DISCORD_TOKEN')
+        self.channel_id = os.getenv('CHANNEL_ID')
         self.session = requests.Session()
         self.cookies = {}
-        self.load_config()
-        self.setup_cookies()  # ใช้ cookie ที่กำหนด
+        
+        # ตรวจสอบว่ามี Environment Variables หรือไม่
+        if not self.token or not self.channel_id:
+            print(f"{Fore.RED}❌ Missing DISCORD_TOKEN or CHANNEL_ID in environment variables")
+            print(f"{Fore.YELLOW}Please set these variables in Railway dashboard:{Style.RESET_ALL}")
+            print(f"  - DISCORD_TOKEN = your_bot_token")
+            print(f"  - CHANNEL_ID = your_channel_id")
+            exit(1)
+        
+        # แปลง channel_id เป็น int
+        try:
+            self.channel_id = int(self.channel_id)
+        except ValueError:
+            print(f"{Fore.RED}❌ CHANNEL_ID must be a number{Style.RESET_ALL}")
+            exit(1)
+        
+        # ตั้งค่า cookies
+        self.setup_cookies()
         self.setup_session()
-    
-    def load_config(self):
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    self.config = json.load(f)
-                print(f"{Fore.GREEN}✓ Loaded config from {self.config_file}")
-            except Exception as e:
-                print(f"{Fore.RED}✗ Config load error: {e}")
-                self.config = {}
-        else:
-            self.config = {}
-            self.setup_config()
+        
+        print(f"{Fore.GREEN}✓ Bot initialized with environment variables{Style.RESET_ALL}")
     
     def setup_cookies(self):
         """ใช้ cookie ที่กำหนดไว้"""
@@ -79,41 +86,6 @@ class TruePortalBot:
             self.session.cookies.update(self.cookies)
             print(f"{Fore.GREEN}✓ Session updated with cookies{Style.RESET_ALL}")
     
-    def setup_config(self):
-        print(f"\n{Fore.YELLOW}═══════════════════════════════════════")
-        print(f"    True Portal Discord Bot Setup")
-        print(f"═══════════════════════════════════════{Style.RESET_ALL}\n")
-        
-        print(f"{Fore.CYAN}Please enter the following information:{Style.RESET_ALL}")
-        
-        while True:
-            token = input(f"{Fore.WHITE}Discord Bot Token: {Fore.YELLOW}").strip()
-            if token:
-                break
-            print(f"{Fore.RED}Token cannot be empty!")
-        
-        while True:
-            channel_id = input(f"{Fore.WHITE}Target Channel ID: {Fore.YELLOW}").strip()
-            if channel_id and channel_id.isdigit():
-                break
-            print(f"{Fore.RED}Please enter a valid numeric Channel ID!")
-        
-        self.config = {
-            "token": token,
-            "channel_id": int(channel_id)
-        }
-        
-        try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=4)
-            print(f"{Fore.GREEN}✓ Configuration saved to {self.config_file}")
-            print(f"{Fore.GREEN}✓ Bot setup complete!")
-        except Exception as e:
-            print(f"{Fore.RED}✗ Failed to save config: {e}")
-            return False
-        
-        return True
-    
     def check_cookies_valid(self):
         """ตรวจสอบว่า cookies ยังใช้ได้หรือไม่"""
         try:
@@ -124,8 +96,6 @@ class TruePortalBot:
                 allow_redirects=False
             )
             
-            # ถ้า status code เป็น 200 แสดงว่าใช้ได้
-            # ถ้าเป็น 302 (redirect) หรือ 401 แสดงว่า cookies หมดอายุ
             if test_response.status_code == 200:
                 print(f"{Fore.GREEN}✓ Cookies are valid{Style.RESET_ALL}")
                 return True
@@ -410,10 +380,6 @@ class TruePortalBot:
         return embed
     
     def run_bot(self):
-        if not self.config.get("token") or not self.config.get("channel_id"):
-            print(f"{Fore.RED}✗ Invalid configuration. Please run setup again.")
-            return
-        
         intents = discord.Intents.default()
         intents.message_content = True
         
@@ -426,7 +392,7 @@ class TruePortalBot:
             print(f"═══════════════════════════════════════")
             print(f"Logged in as: {bot.user.name}")
             print(f"Bot ID: {bot.user.id}")
-            print(f"Channel ID: {self.config['channel_id']}")
+            print(f"Channel ID: {self.channel_id}")
             print(f"Prefix: !")
             print(f"═══════════════════════════════════════{Style.RESET_ALL}\n")
             print(f"{Fore.CYAN}Waiting for commands...{Style.RESET_ALL}")
@@ -441,7 +407,7 @@ class TruePortalBot:
         @bot.command(name='phone')
         async def phone_lookup(ctx, phone_number: str = None):
             # ตรวจสอบ channel
-            if str(ctx.channel.id) != str(self.config["channel_id"]):
+            if str(ctx.channel.id) != str(self.channel_id):
                 return
             
             # ถ้าไม่มี parameter ส่งข้อความวิธีใช้
@@ -521,41 +487,17 @@ class TruePortalBot:
         
         try:
             print(f"{Fore.CYAN}Starting bot...{Style.RESET_ALL}")
-            bot.run(self.config["token"])
+            bot.run(self.token)
         except discord.LoginFailure:
-            print(f"{Fore.RED}✗ Invalid bot token. Please check your token in {self.config_file}")
+            print(f"{Fore.RED}✗ Invalid bot token. Please check DISCORD_TOKEN in environment variables{Style.RESET_ALL}")
         except Exception as e:
-            print(f"{Fore.RED}✗ Bot runtime error: {e}")
+            print(f"{Fore.RED}✗ Bot runtime error: {e}{Style.RESET_ALL}")
 
 def main():
     print(f"{Fore.CYAN}=== True Portal Discord Bot ===")
     
     bot = TruePortalBot()
-    
-    if not bot.config:
-        return
-    
-    while True:
-        print(f"\n{Fore.YELLOW}Options:")
-        print(f"1. Start Bot")
-        print(f"2. Reconfigure Settings")
-        print(f"3. Exit")
-        
-        choice = input(f"\n{Fore.WHITE}Select option (1-3): {Fore.YELLOW}").strip()
-        
-        if choice == "1":
-            print(f"{Fore.CYAN}Starting bot...{Style.RESET_ALL}")
-            bot.run_bot()
-            break
-        elif choice == "2":
-            if bot.setup_config():
-                bot.run_bot()
-                break
-        elif choice == "3":
-            print(f"{Fore.CYAN}Exiting...{Style.RESET_ALL}")
-            break
-        else:
-            print(f"{Fore.RED}Invalid choice. Please select 1, 2, or 3.")
+    bot.run_bot()
 
 if __name__ == "__main__":
     main()
