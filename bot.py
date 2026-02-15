@@ -5,13 +5,6 @@ import json
 import os
 import time
 from datetime import datetime
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 from colorama import init, Fore, Style
 import asyncio
 
@@ -21,16 +14,30 @@ init(autoreset=True)
 TRUE_USER = "17554398"
 TRUE_PASS = "true123456"
 COOKIE_FILE = "true_cookies.json"
+LOGIN_URL = "https://sff-dealer.truecorp.co.th/mnp/j_spring_security_check"
+BASE_URL = "https://sff-dealer.truecorp.co.th"
 
 class TruePortalBot:
     def __init__(self):
-        self.token = os.getenv('DISCORD_TOKEN')
-        self.channel_id = int(os.getenv('CHANNEL_ID', '0'))
+        self.config_file = "bot_config.json"
+        self.session = requests.Session()
         self.cookies = {}
+        self.load_config()
         self.load_cookies()
-        
-        if not self.token or not self.channel_id:
-            print(f"{Fore.RED}❌ Missing DISCORD_TOKEN or CHANNEL_ID in environment variables")
+        self.setup_session()
+    
+    def load_config(self):
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    self.config = json.load(f)
+                print(f"{Fore.GREEN}✓ Loaded config from {self.config_file}")
+            except Exception as e:
+                print(f"{Fore.RED}✗ Config load error: {e}")
+                self.config = {}
+        else:
+            self.config = {}
+            self.setup_config()
     
     def load_cookies(self):
         try:
@@ -49,172 +56,174 @@ class TruePortalBot:
         except:
             pass
     
-    def get_cookies_selenium(self):
-        """วิธีที่ 1: ใช้ Selenium สำหรับ login"""
-        options = Options()
-        options.add_argument("--headless=new")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        options.add_argument("--remote-debugging-port=9222")
-        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-        options.add_experimental_option('useAutomationExtension', False)
+    def setup_session(self):
+        """ตั้งค่า session headers"""
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Origin': BASE_URL,
+            'Referer': f'{BASE_URL}/mnp/'
+        })
         
-        driver = None
-        try:
-            chrome_driver_path = ChromeDriverManager().install()
-            if os.name == 'posix':
-                chrome_driver_path = chrome_driver_path.replace('.exe', '')
-            
-            service = Service(chrome_driver_path)
-            driver = webdriver.Chrome(service=service, options=options)
-            
-            driver.get("https://sff-dealer.truecorp.co.th/mnp/")
-            time.sleep(5)
-            
-            user_field = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='username'], input[type='text']"))
-            )
-            user_field.clear()
-            user_field.send_keys(TRUE_USER)
-            time.sleep(1)
-            
-            pass_field = driver.find_element(By.CSS_SELECTOR, "input[name='password'], input[type='password']")
-            pass_field.clear()
-            pass_field.send_keys(TRUE_PASS)
-            time.sleep(1)
-            
-            submit_btn = WebDriverWait(driver, 20).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit'], input[type='submit'], .btn-submit"))
-            )
-            
-            try:
-                submit_btn.click()
-            except:
-                driver.execute_script("arguments[0].click();", submit_btn)
-            
-            time.sleep(10)
-            
-            if "login" not in driver.current_url.lower():
-                cookies = driver.get_cookies()
-                cookie_dict = {c['name']: c['value'] for c in cookies}
-                
-                if "JSESSIONID" in cookie_dict:
-                    self.cookies = cookie_dict
-                    self.save_cookies()
-                    return True
-            return False
-            
-        except Exception as e:
-            print(f"{Fore.RED}✗ Selenium login error: {e}")
-            return False
-        finally:
-            if driver:
-                driver.quit()
+        if self.cookies:
+            self.session.cookies.update(self.cookies)
     
-    def get_cookies_direct(self):
-        """วิธีที่ 2: ใช้ requests โดยตรง"""
+    def setup_config(self):
+        print(f"\n{Fore.YELLOW}═══════════════════════════════════════")
+        print(f"    True Portal Discord Bot Setup")
+        print(f"═══════════════════════════════════════{Style.RESET_ALL}\n")
+        
+        print(f"{Fore.CYAN}Please enter the following information:{Style.RESET_ALL}")
+        
+        while True:
+            token = input(f"{Fore.WHITE}Discord Bot Token: {Fore.YELLOW}").strip()
+            if token:
+                break
+            print(f"{Fore.RED}Token cannot be empty!")
+        
+        while True:
+            channel_id = input(f"{Fore.WHITE}Target Channel ID: {Fore.YELLOW}").strip()
+            if channel_id and channel_id.isdigit():
+                break
+            print(f"{Fore.RED}Please enter a valid numeric Channel ID!")
+        
+        self.config = {
+            "token": token,
+            "channel_id": int(channel_id)
+        }
+        
         try:
-            session = requests.Session()
-            login_page = session.get("https://sff-dealer.truecorp.co.th/mnp/")
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, indent=4)
+            print(f"{Fore.GREEN}✓ Configuration saved to {self.config_file}")
+            print(f"{Fore.GREEN}✓ Bot setup complete!")
+        except Exception as e:
+            print(f"{Fore.RED}✗ Failed to save config: {e}")
+            return False
+        
+        return True
+    
+    def login(self):
+        """เข้าสู่ระบบ True Portal"""
+        try:
+            print(f"{Fore.YELLOW}⏳ Logging into True Portal...")
             
-            csrf_token = None
-            if 'csrf' in login_page.text:
-                import re
-                csrf_match = re.search(r'name="csrf_token".*?value="(.*?)"', login_page.text)
-                if csrf_match:
-                    csrf_token = csrf_match.group(1)
+            # ไปที่หน้า login ก่อนเพื่อ get cookies
+            self.session.get(f"{BASE_URL}/mnp/", timeout=10)
+            time.sleep(2)
             
-            form_data = {
+            # ส่งข้อมูล login
+            login_data = {
                 'username': TRUE_USER,
                 'password': TRUE_PASS
             }
             
-            if csrf_token:
-                form_data['csrf_token'] = csrf_token
-            
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-            
-            response = session.post(
-                "https://sff-dealer.truecorp.co.th/mnp/login",
-                data=form_data,
-                headers=headers
+            response = self.session.post(
+                LOGIN_URL,
+                data=login_data,
+                timeout=15,
+                allow_redirects=True
             )
             
+            # ตรวจสอบว่า login สำเร็จหรือไม่
             if response.status_code == 200:
-                cookies = session.cookies.get_dict()
-                if cookies:
-                    self.cookies = cookies
+                # ตรวจสอบโดยการเรียก API ทดสอบ
+                test_response = self.session.get(
+                    f"{BASE_URL}/profiles/customer/get?product-id-number=0812345678&product-id-name=msisdn",
+                    timeout=10
+                )
+                
+                if test_response.status_code == 200:
+                    # บันทึก cookies
+                    self.cookies = self.session.cookies.get_dict()
                     self.save_cookies()
+                    print(f"{Fore.GREEN}✓ Login successful!")
                     return True
-                    
+                else:
+                    print(f"{Fore.RED}✗ Login failed - Invalid credentials or system error")
+                    return False
+            else:
+                print(f"{Fore.RED}✗ Login failed with status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            print(f"{Fore.RED}✗ Login timeout - Server not responding")
+            return False
+        except requests.exceptions.ConnectionError:
+            print(f"{Fore.RED}✗ Connection error - Cannot reach True Portal")
+            return False
         except Exception as e:
-            print(f"{Fore.RED}✗ Direct login error: {e}")
-        
-        return False
+            print(f"{Fore.RED}✗ Login error: {e}")
+            return False
     
     def check_login_status(self):
         """ตรวจสอบสถานะการ login"""
         if not self.cookies:
-            print(f"{Fore.YELLOW}⏳ No cookies found, logging in...")
-            
-            if self.get_cookies_selenium():
-                print(f"{Fore.GREEN}✓ Login successful (Selenium)")
-                return True
-            else:
-                print(f"{Fore.YELLOW}⏳ Trying alternative method...")
-                
-                if self.get_cookies_direct():
-                    print(f"{Fore.GREEN}✓ Login successful (Direct)")
-                    return True
-                else:
-                    print(f"{Fore.RED}✗ Login failed")
-                    return False
-        return True
-    
-    def fetch_data(self, query, retry=True):
-        """ดึงข้อมูลจาก API"""
-        if not self.cookies:
-            if not self.check_login_status():
-                return {"error": "Authentication Failed"}
+            return self.login()
         
-        mode = "certificateid" if len(query) == 13 else "product-id-number"
-        url = f"https://sff-dealer.truecorp.co.th/profiles/customer/get?{mode}={query}"
-        if len(query) == 10:
-            url += "&product-id-name=msisdn"
+        # ทดสอบว่า cookies ยังใช้งานได้หรือไม่
+        try:
+            test_response = self.session.get(
+                f"{BASE_URL}/profiles/customer/get?product-id-number=0812345678&product-id-name=msisdn",
+                timeout=10
+            )
+            
+            if test_response.status_code == 200:
+                return True
+            elif test_response.status_code == 401:
+                print(f"{Fore.YELLOW}⏳ Session expired, re-logging in...")
+                return self.login()
+            else:
+                print(f"{Fore.YELLOW}⏳ Session invalid, re-logging in...")
+                return self.login()
+                
+        except:
+            return self.login()
+    
+    def fetch_data(self, query):
+        """ดึงข้อมูลจาก API"""
+        if not self.check_login_status():
+            return {"error": "ไม่สามารถเชื่อมต่อกับ True Portal ได้"}
+        
+        # เลือก mode ตามประเภทข้อมูล
+        if len(query) == 13:  # เลขบัตรประชาชน
+            url = f"{BASE_URL}/profiles/customer/get?certificateid={query}"
+        else:  # เบอร์โทรศัพท์
+            url = f"{BASE_URL}/profiles/customer/get?product-id-number={query}&product-id-name=msisdn"
         
         headers = {
             "channel_alias": "WHS",
             "employeeid": TRUE_USER,
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "X-Requested-With": "XMLHttpRequest"
         }
         
         try:
-            r = requests.get(url, headers=headers, cookies=self.cookies, timeout=15)
+            response = self.session.get(url, headers=headers, timeout=15)
             
-            if r.status_code == 401 and retry:
-                print(f"{Fore.YELLOW}⏳ Session expired, reconnecting...")
-                self.cookies = {}
-                if self.check_login_status():
-                    return self.fetch_data(query, retry=False)
-                    
-            if r.status_code == 200:
-                res = r.json()
-                return {
-                    "status": "success",
-                    "type": "phone" if len(query) == 10 else "idcard",
-                    "value": query,
-                    "results": res
-                }
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    return {
+                        "status": "success",
+                        "type": "phone" if len(query) == 10 else "idcard",
+                        "value": query,
+                        "results": data
+                    }
+                except:
+                    return {"error": "ข้อมูลที่ได้รับไม่ถูกต้อง"}
+            elif response.status_code == 401:
+                return {"error": "Session หมดอายุ กรุณาลองใหม่อีกครั้ง"}
+            elif response.status_code == 404:
+                return {"error": "ไม่พบข้อมูลในระบบ"}
+            else:
+                return {"error": f"API Error {response.status_code}"}
                 
-            return {"error": f"API Error {r.status_code}"}
-            
+        except requests.exceptions.Timeout:
+            return {"error": "การเชื่อมต่อหมดเวลา"}
+        except requests.exceptions.ConnectionError:
+            return {"error": "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้"}
         except Exception as e:
             return {"error": str(e)}
     
@@ -265,9 +274,10 @@ class TruePortalBot:
         
         results = data["results"]
         
+        # สร้าง embed หลัก
         embed = discord.Embed(
             title=f"📡 ข้อมูลลูกค้า True Portal",
-            description=f"🔄 กำลังดึงข้อมูลเบอร์ **{query}**...\n━━━━━━━━━━━━━━━━━━━━",
+            description=f"━━━━━━━━━━━━━━━━━━━━",
             color=0xED1C24,
             timestamp=datetime.now()
         )
@@ -278,6 +288,7 @@ class TruePortalBot:
             # 【 🙍‍♂️ 】ข้อมูลส่วนบุคคล
             personal_info = []
             
+            # ชื่อ-นามสกุล
             firstname = rd.get('firstname', '')
             lastname = rd.get('lastname', '')
             title = rd.get('title', '')
@@ -290,16 +301,20 @@ class TruePortalBot:
             if name and name != ' ':
                 personal_info.append(f"👤 **ชื่อ-นามสกุล:** {name}")
             
+            # เลขบัตรประชาชน
             id_number = rd.get('id-number', '')
             if id_number and id_number != '-':
+                # แสดงเลขบัตรแบบเว้นวรรคทุก 4 หลัก
                 formatted_id = ' '.join([id_number[i:i+4] for i in range(0, len(id_number), 4)])
                 personal_info.append(f"🪪 **เลขบัตรประชาชน:** {formatted_id}")
             
+            # วันเกิด
             birthdate = rd.get('birthdate', '')
             if birthdate and birthdate != '-':
                 thai_birth = self.format_thai_date(birthdate)
                 personal_info.append(f"📅 **วันเกิด:** {thai_birth}")
             
+            # เพศ
             gender = rd.get('gender', '')
             if gender:
                 gender_map = {
@@ -319,8 +334,10 @@ class TruePortalBot:
             # 【 📞 】ข้อมูลการติดต่อ
             contact_info = []
             
+            # เบอร์โทร
             phone = rd.get('contact-mobile-number', '')
             if phone and phone != '-':
+                # จัดรูปแบบเบอร์โทร
                 if len(phone) == 10:
                     formatted_phone = f"{phone[0:3]}-{phone[3:6]}-{phone[6:10]}"
                 else:
@@ -346,34 +363,43 @@ class TruePortalBot:
                         addr = addr_list[addr_type]
                         if isinstance(addr, dict):
                             
+                            # บ้านเลขที่
                             if addr.get('number') and addr['number'] != '-':
                                 address_lines.append(f"🏠 **บ้านเลขที่:** {addr['number']}")
                             
+                            # หมู่
                             if addr.get('moo') and addr['moo'] != '-':
                                 address_lines.append(f"🏘️ **หมู่:** {addr['moo']}")
                             
+                            # อาคาร
                             if addr.get('building-name') and addr['building-name'] != '-':
                                 address_lines.append(f"🏢 **อาคาร:** {addr['building-name']}")
                             
+                            # ซอย
                             if addr.get('soi') and addr['soi'] != '-':
                                 address_lines.append(f"🛣️ **ซอย:** {addr['soi']}")
                             
+                            # ถนน
                             if addr.get('street') and addr['street'] != '-':
                                 address_lines.append(f"🛤️ **ถนน:** {addr['street']}")
                             
+                            # ตำบล/แขวง
                             if addr.get('sub-district') and addr['sub-district'] != '-':
                                 address_lines.append(f"🗺️ **ตำบล/แขวง:** {addr['sub-district']}")
                             
+                            # อำเภอ/เขต
                             if addr.get('district') and addr['district'] != '-':
                                 address_lines.append(f"🌆 **อำเภอ/เขต:** {addr['district']}")
                             
+                            # จังหวัด
                             if addr.get('province') and addr['province'] != '-':
                                 address_lines.append(f"🌇 **จังหวัด:** {addr['province']}")
                             
+                            # รหัสไปรษณีย์
                             if addr.get('zip') and addr['zip'] != '-':
                                 address_lines.append(f"📮 **รหัสไปรษณีย์:** {addr['zip']}")
                             
-                            break
+                            break  # เจอที่อยู่แล้วหยุด
             
             if address_lines:
                 embed.add_field(
@@ -385,14 +411,17 @@ class TruePortalBot:
             # 【 💬 】รายละเอียดลูกค้า
             customer_info = []
             
+            # รหัสลูกค้า
             customer_id = rd.get('customer-id', '')
             if customer_id and customer_id != '-':
                 customer_info.append(f"🆔 **รหัสลูกค้า:** {customer_id}")
             
+            # ระดับลูกค้า
             customer_level = rd.get('customer-level', '')
             if customer_level and customer_level != '-':
                 customer_info.append(f"⭐ **ระดับลูกค้า:** {customer_level}")
             
+            # วันที่บัตรหมดอายุ
             if 'id-card-expire-date' in rd and rd['id-card-expire-date'] and rd['id-card-expire-date'] != '-':
                 expire_date = self.format_thai_date(rd['id-card-expire-date'])
                 customer_info.append(f"⏳ **บัตรหมดอายุ:** {expire_date}")
@@ -404,6 +433,7 @@ class TruePortalBot:
                     inline=False
                 )
         
+        # Footer
         current_time = datetime.now()
         thai_time = current_time.strftime("%d/%m/%Y %H:%M")
         embed.set_footer(text=f"Check by: True Portal • {thai_time}")
@@ -411,8 +441,8 @@ class TruePortalBot:
         return embed
     
     def run_bot(self):
-        if not self.token or not self.channel_id:
-            print(f"{Fore.RED}✗ Missing Discord Token or Channel ID")
+        if not self.config.get("token") or not self.config.get("channel_id"):
+            print(f"{Fore.RED}✗ Invalid configuration. Please run setup again.")
             return
         
         intents = discord.Intents.default()
@@ -427,12 +457,13 @@ class TruePortalBot:
             print(f"═══════════════════════════════════════")
             print(f"Logged in as: {bot.user.name}")
             print(f"Bot ID: {bot.user.id}")
-            print(f"Channel ID: {self.channel_id}")
+            print(f"Channel ID: {self.config['channel_id']}")
             print(f"Prefix: !")
             print(f"═══════════════════════════════════════{Style.RESET_ALL}\n")
             print(f"{Fore.CYAN}Waiting for commands...{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}Command: !phone <phone_number>{Style.RESET_ALL}")
             
+            # ตรวจสอบ login ตอนเริ่ม bot
             if self.check_login_status():
                 print(f"{Fore.GREEN}✓ Connected to True Portal{Style.RESET_ALL}")
             else:
@@ -440,9 +471,11 @@ class TruePortalBot:
         
         @bot.command(name='phone')
         async def phone_lookup(ctx, phone_number: str = None):
-            if str(ctx.channel.id) != str(self.channel_id):
+            # ตรวจสอบ channel
+            if str(ctx.channel.id) != str(self.config["channel_id"]):
                 return
             
+            # ถ้าไม่มี parameter ส่งข้อความวิธีใช้
             if not phone_number:
                 embed = discord.Embed(
                     title="❌ กรุณาใส่เบอร์โทร 10 หลัก",
@@ -452,6 +485,7 @@ class TruePortalBot:
                 await ctx.send(embed=embed)
                 return
             
+            # ตรวจสอบรูปแบบ
             if not phone_number.isdigit():
                 embed = discord.Embed(
                     title="❌ กรุณาใส่เฉพาะตัวเลข",
@@ -470,6 +504,7 @@ class TruePortalBot:
                 await ctx.send(embed=embed)
                 return
             
+            # แสดงสถานะกำลังค้นหา
             loading_embed = discord.Embed(
                 title=f"🔄 กำลังดึงข้อมูลเบอร์ {phone_number}...",
                 description="⏳ กรุณารอสักครู่ ระบบกำลังค้นหาข้อมูล",
@@ -478,11 +513,16 @@ class TruePortalBot:
             loading_msg = await ctx.send(embed=loading_embed)
             
             try:
+                # เรียกดูข้อมูล
                 data = self.fetch_data(phone_number)
                 
+                # ลบข้อความกำลังโหลด
                 await loading_msg.delete()
                 
+                # สร้าง embed สวยงาม
                 embed = self.create_beautiful_embed(data, phone_number)
+                
+                # ส่ง embed
                 await ctx.send(embed=embed)
                 
                 print(f"{Fore.GREEN}✓ Sent phone lookup results for: {phone_number}")
@@ -512,12 +552,41 @@ class TruePortalBot:
         
         try:
             print(f"{Fore.CYAN}Starting bot...{Style.RESET_ALL}")
-            bot.run(self.token)
+            bot.run(self.config["token"])
         except discord.LoginFailure:
-            print(f"{Fore.RED}✗ Invalid bot token")
+            print(f"{Fore.RED}✗ Invalid bot token. Please check your token in {self.config_file}")
         except Exception as e:
             print(f"{Fore.RED}✗ Bot runtime error: {e}")
 
-if __name__ == "__main__":
+def main():
+    print(f"{Fore.CYAN}=== True Portal Discord Bot ===")
+    
     bot = TruePortalBot()
-    bot.run_bot()
+    
+    if not bot.config:
+        return
+    
+    while True:
+        print(f"\n{Fore.YELLOW}Options:")
+        print(f"1. Start Bot")
+        print(f"2. Reconfigure Settings")
+        print(f"3. Exit")
+        
+        choice = input(f"\n{Fore.WHITE}Select option (1-3): {Fore.YELLOW}").strip()
+        
+        if choice == "1":
+            print(f"{Fore.CYAN}Starting bot...{Style.RESET_ALL}")
+            bot.run_bot()
+            break
+        elif choice == "2":
+            if bot.setup_config():
+                bot.run_bot()
+                break
+        elif choice == "3":
+            print(f"{Fore.CYAN}Exiting...{Style.RESET_ALL}")
+            break
+        else:
+            print(f"{Fore.RED}Invalid choice. Please select 1, 2, or 3.")
+
+if __name__ == "__main__":
+    main()
