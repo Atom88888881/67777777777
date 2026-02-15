@@ -12,10 +12,17 @@ init(autoreset=True)
 
 # ค่าคงที่
 TRUE_USER = "17554398"
-TRUE_PASS = "true123456"
 COOKIE_FILE = "true_cookies.json"
-LOGIN_URL = "https://sff-dealer.truecorp.co.th/mnp/j_spring_security_check"
-BASE_URL = "https://sff-dealer.truecorp.co.th"
+
+# Cookie ที่คุณให้มา (ใช้ได้เลย)
+PREDEFINED_COOKIES = {
+    "__cf_bm": "eDSpLVrKuXEoWEyYUhxrSDenGATv4Vg5s1Vhhnjt8bk-1771120521.7398732-1.0.1.1-YHmW.8rmi2UJuhcLmH4zP0pRAhCc_nKYaZFdD76k9eUFHCPD5zo4nqwr45Zk9N.gTcn3ozUHIko7uxUzPVOw.QATfVcnSZINpIP7iWWdnLNba_4nmiUHK9f53le08N5g",
+    "_cfuvid": "WNoUf7fqE9kbKjNlnDjnaEL3STI5YbqXOo4J3zADW4U-1771120521.185486-1.0.1.1-PxjA1h.Le5u42MfGGC3pXru3QcIIH7kmWiKHaX4vW7I",
+    "JSESSIONID": "Ck18gKxBWKxXVobv3cmjX6wZ.SFF_node1",
+    "cf_clearance": "esahkQiPGATeRA3v0Z.Q37GSuTzH7EBQjdllPggbfAg-1771120521-1.2.1.1-Vb40Z0Dx25Nct0JVhIgFWZrtjcKN9_ebFVJaEf7jl8jdZSLt2_.WwoJGqg.ODxnanEq7flHMld1Eje7Udk8yalrger.Y3XCNZKry72e5PEkC_KA2MAu3AZedkoNUWPwSITdnn9P7oS7F5LjziOVMnbgNn1oBvfRql_R1vNj1QyWEGHIjdBwZw.tYItosQlYObJW4ekfAv7r9Sa1arbbJhRNm6m5nx0Bicp8sEOsA0nw",
+    "dealer_prod_session": "kBwUuUXB5xB0Qe-COJK-pg|1771156529|QZRXlP-nMv_C5ocOpzs7JBNy4i8",
+    "NSC_WJQ_UNTBQQS-19180-19181": "ffffffffaf1baad845525d5f4f58455e445a4a427cdc"
+}
 
 class TruePortalBot:
     def __init__(self):
@@ -23,7 +30,7 @@ class TruePortalBot:
         self.session = requests.Session()
         self.cookies = {}
         self.load_config()
-        self.load_cookies()
+        self.setup_cookies()  # ใช้ cookie ที่กำหนด
         self.setup_session()
     
     def load_config(self):
@@ -39,36 +46,38 @@ class TruePortalBot:
             self.config = {}
             self.setup_config()
     
-    def load_cookies(self):
-        try:
-            if os.path.exists(COOKIE_FILE):
-                with open(COOKIE_FILE, 'r', encoding='utf-8') as f:
-                    self.cookies = json.load(f)
-                print(f"{Fore.GREEN}✓ Loaded cookies from {COOKIE_FILE}")
-        except:
-            self.cookies = {}
+    def setup_cookies(self):
+        """ใช้ cookie ที่กำหนดไว้"""
+        self.cookies = PREDEFINED_COOKIES.copy()
+        # บันทึก cookies ลงไฟล์
+        self.save_cookies()
+        print(f"{Fore.GREEN}✓ Loaded predefined cookies{Style.RESET_ALL}")
     
     def save_cookies(self):
+        """บันทึก cookies ลงไฟล์"""
         try:
             with open(COOKIE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(self.cookies, f)
-            print(f"{Fore.GREEN}✓ Saved cookies to {COOKIE_FILE}")
-        except:
-            pass
+                json.dump(self.cookies, f, indent=2)
+            print(f"{Fore.GREEN}✓ Saved cookies to {COOKIE_FILE}{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED}✗ Failed to save cookies: {e}{Style.RESET_ALL}")
     
     def setup_session(self):
-        """ตั้งค่า session headers"""
+        """ตั้งค่า session headers และ cookies"""
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8',
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': BASE_URL,
-            'Referer': f'{BASE_URL}/mnp/'
+            'Origin': 'https://sff-dealer.truecorp.co.th',
+            'Referer': 'https://sff-dealer.truecorp.co.th/mnp/',
+            'X-Requested-With': 'XMLHttpRequest'
         })
         
+        # อัปเดต cookies ใน session
         if self.cookies:
             self.session.cookies.update(self.cookies)
+            print(f"{Fore.GREEN}✓ Session updated with cookies{Style.RESET_ALL}")
     
     def setup_config(self):
         print(f"\n{Fore.YELLOW}═══════════════════════════════════════")
@@ -105,116 +114,76 @@ class TruePortalBot:
         
         return True
     
-    def login(self):
-        """เข้าสู่ระบบ True Portal"""
+    def check_cookies_valid(self):
+        """ตรวจสอบว่า cookies ยังใช้ได้หรือไม่"""
         try:
-            print(f"{Fore.YELLOW}⏳ Logging into True Portal...")
-            
-            # ไปที่หน้า login ก่อนเพื่อ get cookies
-            self.session.get(f"{BASE_URL}/mnp/", timeout=10)
-            time.sleep(2)
-            
-            # ส่งข้อมูล login
-            login_data = {
-                'username': TRUE_USER,
-                'password': TRUE_PASS
-            }
-            
-            response = self.session.post(
-                LOGIN_URL,
-                data=login_data,
-                timeout=15,
-                allow_redirects=True
+            # ทดสอบเรียก API ด้วย cookies
+            test_response = self.session.get(
+                "https://sff-dealer.truecorp.co.th/profiles/customer/get?product-id-number=0812345678&product-id-name=msisdn",
+                timeout=10,
+                allow_redirects=False
             )
             
-            # ตรวจสอบว่า login สำเร็จหรือไม่
-            if response.status_code == 200:
-                # ตรวจสอบโดยการเรียก API ทดสอบ
-                test_response = self.session.get(
-                    f"{BASE_URL}/profiles/customer/get?product-id-number=0812345678&product-id-name=msisdn",
-                    timeout=10
-                )
-                
-                if test_response.status_code == 200:
-                    # บันทึก cookies
-                    self.cookies = self.session.cookies.get_dict()
-                    self.save_cookies()
-                    print(f"{Fore.GREEN}✓ Login successful!")
-                    return True
-                else:
-                    print(f"{Fore.RED}✗ Login failed - Invalid credentials or system error")
-                    return False
+            # ถ้า status code เป็น 200 แสดงว่าใช้ได้
+            # ถ้าเป็น 302 (redirect) หรือ 401 แสดงว่า cookies หมดอายุ
+            if test_response.status_code == 200:
+                print(f"{Fore.GREEN}✓ Cookies are valid{Style.RESET_ALL}")
+                return True
+            elif test_response.status_code == 302:
+                print(f"{Fore.YELLOW}⚠️ Cookies expired (redirected to login){Style.RESET_ALL}")
+                return False
+            elif test_response.status_code == 401:
+                print(f"{Fore.YELLOW}⚠️ Cookies expired (unauthorized){Style.RESET_ALL}")
+                return False
             else:
-                print(f"{Fore.RED}✗ Login failed with status code: {response.status_code}")
+                print(f"{Fore.YELLOW}⚠️ Cookies might be invalid (status: {test_response.status_code}){Style.RESET_ALL}")
                 return False
                 
-        except requests.exceptions.Timeout:
-            print(f"{Fore.RED}✗ Login timeout - Server not responding")
-            return False
-        except requests.exceptions.ConnectionError:
-            print(f"{Fore.RED}✗ Connection error - Cannot reach True Portal")
-            return False
         except Exception as e:
-            print(f"{Fore.RED}✗ Login error: {e}")
+            print(f"{Fore.RED}✗ Error checking cookies: {e}{Style.RESET_ALL}")
             return False
-    
-    def check_login_status(self):
-        """ตรวจสอบสถานะการ login"""
-        if not self.cookies:
-            return self.login()
-        
-        # ทดสอบว่า cookies ยังใช้งานได้หรือไม่
-        try:
-            test_response = self.session.get(
-                f"{BASE_URL}/profiles/customer/get?product-id-number=0812345678&product-id-name=msisdn",
-                timeout=10
-            )
-            
-            if test_response.status_code == 200:
-                return True
-            elif test_response.status_code == 401:
-                print(f"{Fore.YELLOW}⏳ Session expired, re-logging in...")
-                return self.login()
-            else:
-                print(f"{Fore.YELLOW}⏳ Session invalid, re-logging in...")
-                return self.login()
-                
-        except:
-            return self.login()
     
     def fetch_data(self, query):
         """ดึงข้อมูลจาก API"""
-        if not self.check_login_status():
-            return {"error": "ไม่สามารถเชื่อมต่อกับ True Portal ได้"}
+        
+        # ตรวจสอบ cookies ก่อน
+        if not self.check_cookies_valid():
+            return {"error": "Cookie หมดอายุ กรุณาอัปเดต cookie ใหม่"}
         
         # เลือก mode ตามประเภทข้อมูล
         if len(query) == 13:  # เลขบัตรประชาชน
-            url = f"{BASE_URL}/profiles/customer/get?certificateid={query}"
+            url = f"https://sff-dealer.truecorp.co.th/profiles/customer/get?certificateid={query}"
         else:  # เบอร์โทรศัพท์
-            url = f"{BASE_URL}/profiles/customer/get?product-id-number={query}&product-id-name=msisdn"
+            url = f"https://sff-dealer.truecorp.co.th/profiles/customer/get?product-id-number={query}&product-id-name=msisdn"
         
         headers = {
             "channel_alias": "WHS",
-            "employeeid": TRUE_USER,
-            "X-Requested-With": "XMLHttpRequest"
+            "employeeid": TRUE_USER
         }
         
         try:
+            print(f"{Fore.CYAN}🔍 Fetching data for: {query}{Style.RESET_ALL}")
             response = self.session.get(url, headers=headers, timeout=15)
+            
+            print(f"{Fore.CYAN}Response status: {response.status_code}{Style.RESET_ALL}")
             
             if response.status_code == 200:
                 try:
                     data = response.json()
+                    print(f"{Fore.GREEN}✓ Data received successfully{Style.RESET_ALL}")
                     return {
                         "status": "success",
                         "type": "phone" if len(query) == 10 else "idcard",
                         "value": query,
                         "results": data
                     }
-                except:
+                except json.JSONDecodeError:
+                    print(f"{Fore.RED}✗ Invalid JSON response{Style.RESET_ALL}")
                     return {"error": "ข้อมูลที่ได้รับไม่ถูกต้อง"}
+            elif response.status_code == 302:
+                return {"error": "Session หมดอายุ กรุณาอัปเดต cookie ใหม่"}
             elif response.status_code == 401:
-                return {"error": "Session หมดอายุ กรุณาลองใหม่อีกครั้ง"}
+                return {"error": "ไม่มีสิทธิ์เข้าถึง กรุณาตรวจสอบ cookie"}
             elif response.status_code == 404:
                 return {"error": "ไม่พบข้อมูลในระบบ"}
             else:
@@ -250,7 +219,7 @@ class TruePortalBot:
         if "error" in data:
             embed = discord.Embed(
                 title=f"❌ ไม่พบข้อมูลเบอร์ {query}",
-                description="ระบบไม่พบข้อมูลในฐานข้อมูล",
+                description=data["error"],
                 color=0xe74c3c,
                 timestamp=datetime.now()
             )
@@ -463,11 +432,11 @@ class TruePortalBot:
             print(f"{Fore.CYAN}Waiting for commands...{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}Command: !phone <phone_number>{Style.RESET_ALL}")
             
-            # ตรวจสอบ login ตอนเริ่ม bot
-            if self.check_login_status():
-                print(f"{Fore.GREEN}✓ Connected to True Portal{Style.RESET_ALL}")
+            # ตรวจสอบ cookies
+            if self.check_cookies_valid():
+                print(f"{Fore.GREEN}✓ Cookies are working{Style.RESET_ALL}")
             else:
-                print(f"{Fore.RED}✗ Failed to connect to True Portal{Style.RESET_ALL}")
+                print(f"{Fore.RED}✗ Cookies are invalid or expired{Style.RESET_ALL}")
         
         @bot.command(name='phone')
         async def phone_lookup(ctx, phone_number: str = None):
