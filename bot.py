@@ -14,14 +14,13 @@ init(autoreset=True)
 TRUE_USER = "17554398"
 COOKIE_FILE = "true_cookies.json"
 
-# Cookie ที่คุณให้มา (ใช้ได้เลย)
 PREDEFINED_COOKIES = {
-    "__cf_bm": "eDSpLVrKuXEoWEyYUhxrSDenGATv4Vg5s1Vhhnjt8bk-1771120521.7398732-1.0.1.1-YHmW.8rmi2UJuhcLmH4zP0pRAhCc_nKYaZFdD76k9eUFHCPD5zo4nqwr45Zk9N.gTcn3ozUHIko7uxUzPVOw.QATfVcnSZINpIP7iWWdnLNba_4nmiUHK9f53le08N5g",
-    "_cfuvid": "WNoUf7fqE9kbKjNlnDjnaEL3STI5YbqXOo4J3zADW4U-1771120521.185486-1.0.1.1-PxjA1h.Le5u42MfGGC3pXru3QcIIH7kmWiKHaX4vW7I",
-    "JSESSIONID": "Ck18gKxBWKxXVobv3cmjX6wZ.SFF_node1",
-    "cf_clearance": "esahkQiPGATeRA3v0Z.Q37GSuTzH7EBQjdllPggbfAg-1771120521-1.2.1.1-Vb40Z0Dx25Nct0JVhIgFWZrtjcKN9_ebFVJaEf7jl8jdZSLt2_.WwoJGqg.ODxnanEq7flHMld1Eje7Udk8yalrger.Y3XCNZKry72e5PEkC_KA2MAu3AZedkoNUWPwSITdnn9P7oS7F5LjziOVMnbgNn1oBvfRql_R1vNj1QyWEGHIjdBwZw.tYItosQlYObJW4ekfAv7r9Sa1arbbJhRNm6m5nx0Bicp8sEOsA0nw",
-    "dealer_prod_session": "kBwUuUXB5xB0Qe-COJK-pg|1771156529|QZRXlP-nMv_C5ocOpzs7JBNy4i8",
-    "NSC_WJQ_UNTBQQS-19180-19181": "ffffffffaf1baad845525d5f4f58455e445a4a427cdc"
+"__cf_bm": "D45S2aMHCjyMJQ1FTB0kvX6_Pgdp4sTjJEpeQeeYRcc-1771416950.427547-1.0.1.1-7w8ppTh6v_X1FF0qhBMt5IBD3rNfmikZ2zcZcuHcpST.S6pjtpJKTc.Q.K2suLRM9jJm3T1LmSNaZgS3ogFzohk2zyVoe294m33_qthoyfvxojCvo_Enw45_lleyho6O",
+"_cfuvid": "3y5c3q5T7ikAd25mo823Nx4hXMbd6NPphX1XfLH9XX0-1771416949.9210904-1.0.1.1-mA.nrM919xPh8iafVoh.KVm2pHaiIHMifQuU7srZgCg",
+"JSESSIONID": "MZmA93CGzdrQUMtxXnbAkvW2.SFF_node8",
+"cf_clearance": "e_ko.xDxuw9nL9JcVespEbk2RMMAbBCjR80vAjJwAg4-1771416950-1.2.1.1-IDeeBZbln5ZNIvfrPee2wAkeGhJSeJplMe9WoX6c.lb2aCuQUvr5tx3FYWEUJMZwe7UdZmoeEDejarc3t2r8NPEdLK_jdK2fr7i4eyaxB9OXvgy6Hi1uNelurBBTXX50mKMJ7Vcn1sKcsZw.Zi7eAG9mCoVYljJ2q2pAPkHqwQTSFmiIoRBchWc0QBDuqZhWxWeaVS.vkYjn2Fymg8.LuCSkEqk3YptJFXrZstewJmU",
+"dealer_prod_session": "sQE-Mlnwy6tr_8Sm03hBzg|1771452956|fGpxCegojWX_RAweOXzVUbiEy18",
+"NSC_WJQ_UNTBQQS-19180-19181": "ffffffffaf1baaa545525d5f4f58455e445a4a427cdd"
 }
 
 class TruePortalBot:
@@ -501,3 +500,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
